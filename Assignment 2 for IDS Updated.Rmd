@@ -236,7 +236,7 @@ for (col_name in names(lcdf1)) {
 
 missing_info2 = missing_info[order(-missing_info$missing_ratio), ]
 
-missing_info# this shows the varibales and their missing ration
+missing_info# this shows the varibales and their missing ratio
 
 
 # this shows the names of the variables with missing rations higher than 0.6, we are removing them
