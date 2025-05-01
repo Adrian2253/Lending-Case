@@ -1,7 +1,7 @@
 ---
-title: 'Ids 572: Assignment 2'
-author: "Adrian Garces""Henry Huang"
-date: "2025-03-01"
+title: 'Lending Case'
+author: "Adrian Garces"
+date: "2025-05-01"
 output: html_document
 ---
 1a. Your team’s goal is to help clients determine whether and which p2p loans to invest in. What is the specific decision task or tasks that you will address? How will you evaluate ‘better’ vs ‘worse’ decisions? What will be the potential target variable(s)? 
