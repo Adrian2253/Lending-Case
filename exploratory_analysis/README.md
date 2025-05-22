@@ -53,6 +53,23 @@ An initial observation is the distribution between “Charged Off” and “Full
       - There is a inverse relationship between loan grades and average interest rates, the lower the grade the higher the interest rate average is, which makes sense and what would we would expect.
       - ![image](https://github.com/user-attachments/assets/e69eba78-a421-4c99-b8d1-64782aee6c77)
 
+Insights: 
 This plot shows the range (max–min) of interest rates for each loan grade. We observe less variability in the early grades (A and B) as well as in the highest-risk grades (F and G). This suggests that applicants in these categories have more consistent profiles, and lenders are more confident in the expected outcome.
 For example, Grades F and G exhibit consistently high interest rates with little deviation. This could indicate that lenders anticipate a higher risk of default and are less flexible on rate negotiation—they likely have a clear expectation of the return required to offset the risk.
 Similarly, Grades A and B show lower and tighter interest rate distributions, likely reflecting high creditworthiness and less uncertainty, leading to more standardized loan terms.
+
+### How does interest rate relate with loan status and does this vary by grade?
+
+![image](https://github.com/user-attachments/assets/b1854a4a-68af-4e00-869a-d1473a01605c)
+  - Interest rate distribution by loan status
+
+
+![image](https://github.com/user-attachments/assets/1ca445a2-7de1-4c67-b52e-8b3d37552c39)
+  - Interest rate distribution by loan grade
+
+
+Insights:
+The boxplot comparison between interest rates and loan status reveals that while the overall spread (IQR) of interest rates is similar for both Fully Paid and Charged Off loans, the median interest rate is noticeably lower for loans that were fully repaid. This suggests that lower-risk borrowers tend to receive more favorable interest rates. Interestingly, there are several outliers—borrowers with very high interest rates—who still managed to fully repay their loans. In fact, some of the highest interest rates appear within the Fully Paid group. Since interest rates are determined before loans are issued, this pattern implies that repayment outcomes are influenced by more than just interest rate. Factors like income level, employment stability, or financial discipline likely contribute to whether a borrower successfully repays, even under costly borrowing terms.
+
+
+
