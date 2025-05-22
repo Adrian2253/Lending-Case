@@ -1,0 +1,218 @@
+---
+title: "Exploratory Portion - Lending Case"
+author: "Adrian Garces"
+date: "2025-05-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(dplyr)
+lcdf = read.csv("lcdfSample.csv")
+lcdf$loan_status # this is the target variable for this problem
+```
+
+In this section, I take a closer look at the data attributes and categorize them based on what they represent. Before conducting any analyses, I consider which attributes might be most important for the decision task at hand. I start off by looking at the data structure and the missing count for variables to reduce features. We'll come back to this. 
+```{r}
+str(lcdf) # structure of the dataset and each variable, 10,000 rows * 146 variables 
+glimpse(lcdf) # similar
+summary(lcdf) # statistical analysis on numerical variables 
+
+# columns with the most missing values 
+missing_count = sort(colSums(is.na(lcdf)), decreasing = TRUE) # this is a vector list 
+
+# i want to be able to convert this into a dataframe. 
+missing_df = data.frame( Column_Name = names(missing_count), Missing_Values = as.vector(missing_count))
+
+lcdf %>% group_by(X) %>% 
+    summarise(
+        missing = sort(colSums(is.na(lcdf)), decreasing = TRUE)
+    )
+
+
+total_row = nrow(lcdf) # seeing the total rows in a different way 
+missing_cols = names(missing_count[missing_count > (0.5 * total_row)])
+```
+
+Next, I calculate the proportion of defaults by comparing 'Charged Off' vs. 'Fully Paid' loans in the dataset. I then examine how default rates vary across loan grades and sub-grades to assess whether these features provide meaningful insights into the riskiness of different loans.
+
+```{r}
+lcdf %>% group_by(loan_status) %>% 
+    summarise(n=n()) %>% 
+    mutate(proportion=n/sum(n)) 
+
+# loans with loan grades
+lcdf %>% group_by(loan_status, grade) %>% 
+    summarise(n=n()) %>%
+    arrange(desc(n), by_group = T)
+
+# loans with subgrades
+lcdf %>% group_by(loan_status, sub_grade) %>% 
+    summarise(n=n()) %>%
+    arrange(desc(n), by_group = T)
+
+```
+I analyze how many loans exist within each grade and examine whether loan amounts vary by grade. I also explore how these patterns differ based on loan status (e.g., Fully Paid vs. Charged Off). To support this analysis, I generate visualizations and summarize key takeaways based on the observed trends.
+```{r}
+lcdf %>% group_by(grade) %>% 
+    summarise(sum(loan_amnt))
+
+total_loan = sum(lcdf$loan_amnt)
+
+# loan amount by status 
+loan_grade_summary = lcdf %>%
+  group_by(grade) %>%  # Group by grade
+  summarise(sum_loan = sum(loan_amnt)) %>% 
+    arrange(desc(sum_loan)) %>%
+  mutate(proportion= (sum_loan/total_loan))
+
+loan_grade_summary
+
+
+# barplot for the grades and the difference in amount from the previous grade arranged by alphabetical order
+
+
+barplot(loan_grade_summary$proportion, 
+        names.arg = loan_grade_summary$grade, 
+        main = "Proportion of Loan Amount Per Grade", 
+        xlab = "Grade", 
+        ylab = "Loan Amount Proportion (%) ",
+        col = "green",
+        border = "black")
+
+```
+
+```{r}
+# for grades
+int_rate_grade = lcdf %>%
+  group_by(grade) %>%  # Group by grade
+  summarise(
+      Avg = mean(int_rate),
+      Max = max(int_rate),
+      Min = min(int_rate),
+      Std = sd(int_rate),
+      Range = Max - Min
+  )
+
+# for subgrades
+int_rate_subgrades = lcdf %>%
+  group_by(sub_grade) %>%  # Group by subgrade
+  summarise(
+      Avg = mean(int_rate),
+      Max = max(int_rate),
+      Min = min(int_rate),
+      Std = sd(int_rate), 
+      Range = (Max - Min)
+  )
+
+barplot(int_rate_grade$Range, 
+        names.arg = int_rate_grade$grade, 
+        main = "Range Per Grade (Max-Min)", 
+        xlab = "Grade", 
+        ylab = "Range(%) ",
+        col = "pink",
+        border = "black")
+```
+Does interest rate for loans vary by grade, subgrade? Let's look at the average, standard- deviation, min and max of interest rate by grade and subgrade.
+```{r}
+
+ggplot(lcdf, aes(x= loan_status, y = int_rate)) +
+    geom_boxplot( fill = "slateblue", alpha = 0.2) 
+
+ggplot(lcdf, aes(x= grade, y = int_rate)) +
+    geom_boxplot( fill = "coral", alpha = 0.2) 
+
+```
+
+We want to see how long it actually takes for the loans that were actually paid back! We are going to call this new variable within the dataset "actual term" which is different from the "loan term".
+
+```{r}
+library(lubridate)
+lcdf1 = read.csv("lcdfSample.csv")
+
+head(lcdf1[, c("last_pymnt_d", "issue_d")])
+
+library(lubridate)
+
+lcdf1$last_pymnt_d = paste(lcdf1$last_pymnt_d, "-01", sep = "") # this is combining strings, so we are combining the already date which is month-year now + "-01" we don't want anything in between the data and the -01 so we have nothing between the commas. We are adding this so we can have a day to match the issue date formate which include the day month and year. 
+
+lcdf1$last_pymnt_d = parse_date_time(lcdf1$last_pymnt_d, "myd")
+
+lcdf1$actualTerm = ifelse(lcdf$loan_status=="Fully Paid", as.duration(lcdf1$issue_d  %--% lcdf1$last_pymnt_d)/dyears(1), 3)
+
+head(lcdf1[,c("loan_status","actualTerm","term")], 40)
+
+ggplot(subset(lcdf1, loan_status == "Fully Paid"), 
+       aes(x = loan_status, y = actualTerm)) +
+  geom_boxplot(fill = "plum", alpha = 1) + 
+    labs(
+        title = " Actual Term Distribution for Fully Paid Loans",
+       x = "Loan Status",
+       y = " Actual Term Length"
+    )
+
+ggplot(lcdf1,aes(x = grade, y = actualTerm)) +
+  geom_boxplot(fill = "red", alpha = 1) + 
+    labs(
+        title = " Actual Term Distribution for Fully Paid Loans by Grade",
+       x = "Loan Grade",
+       y = " Actual Term Length"
+    )
+
+
+```
+Here I am calculating the annual return for a loan. 
+
+```{r}
+lcdf1$actualReturn <- ifelse(lcdf1$actualTerm>0, ((lcdf1$total_pymnt -lcdf1$funded_amnt)/lcdf1$funded_amnt)*(1/lcdf1$actualTerm)*100, 0)
+
+head(lcdf1[, c("total_pymnt", "funded_amnt", "actualReturn")])
+
+lcdf1$annRet <- ((lcdf1$total_pymnt -lcdf1$funded_amnt)/lcdf1$funded_amnt)*(12/36)*100
+
+head(lcdf1[, c("total_pymnt", "funded_amnt", "actualReturn", "annRet")])
+
+```
+In this section, I examine whether investors lose their entire investment when loans are charged off. I analyze how returns on charged-off loans vary across loan grades and compare the average return values to the average interest rates to identify any meaningful differences. Additionally, I evaluate how returns vary by both grade and sub-grade to better understand risk-reward dynamics across loan categories. Based on these insights, I reflect on which types of loans may offer the most attractive investment opportunities.
+
+
+```{r}
+
+# Filter for charged-off loans and calculate the difference
+charged_off_data <- lcdf1 %>%
+  filter(loan_status == "Charged Off") %>%
+  mutate(difference = funded_amnt - total_pymnt)  # Loss amount
+
+# Summarize the average difference by loan grade
+Charged_Off_Summary_Table <- charged_off_data %>%
+  group_by(grade) %>%
+  summarise(
+    avg_loss = mean(difference, na.rm = TRUE),  # Average loss per grade
+    median_loss = median(difference, na.rm = TRUE),
+    AvgInt = mean(int_rate),
+    AvgReturn = mean(actualReturn),
+    total_loss = sum(difference, na.rm = TRUE),
+    avg_funded = mean(funded_amnt),
+    count = n()
+  ) %>%
+  arrange(desc(avg_loss))
+
+#subgrade
+Sub_Charged_Off_Summary_Table <- charged_off_data %>%
+  group_by(sub_grade) %>%
+  summarise(
+    avg_loss = mean(difference, na.rm = TRUE),  # Average loss per grade
+    median_loss = median(difference, na.rm = TRUE),
+    AvgInt = mean(int_rate),
+    AvgReturn = mean(actualReturn),
+    total_loss = sum(difference, na.rm = TRUE),
+    count = n()
+  ) %>%
+  arrange(desc(avg_loss))
+
+Sub_Charged_Off_Summary_Table
+```
