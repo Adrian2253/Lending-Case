@@ -133,13 +133,122 @@ Most fully paid loans are repaid in under 2.5 years, which is shorter than the e
 3. Grade A loans show the highest average dollar loss per charged-off loan, but also have the highest average funded amounts. This suggests that lenders had strong confidence in Grade A borrowers, likely due to their low default risk, which justified issuing larger loan amounts. 
 
 
-  
+### Data Cleaning Before Modeling 
+
+Before we run this dataset into any model to determine if we can predict if a loan will either be considered "Fully Paid" or "Charged Off", let's clean this data first to ensure we are removing variables that sre not important to the model. 
+
+The first thing I am going to do before doing any  significant imputing for NA values, is delete variabls where all the values are NA. 
     
 
 
+```{r}
+# this is checking with columns have only missing values, these will be removed. 
+lcdf1 %>% select_if( function(x) { all(is.na(x)) } ) %>% colnames() 
+
+#Drop vars with all empty values # after we do this we are down to 112 variables.
+lcdf1 <- lcdf1 %>% select_if(function(x){ ! all(is.na(x)) } )
+
+# let's see the proportions of missing values within a dataset 
+
+# here we are creating a empty data frame for now. the variable will be the column names, the missing ratio will be the proportion of the values within 
+missing_info = data.frame( 
+    variable = character(),
+    missing_ratio = numeric(),
+    stringsAsFactors = FALSE
+)
+
+for (col_name in names(lcdf1)) {
+    na_count = sum(is.na(lcdf1[[col_name]])) # this is counting the number of NA within the columns and returning a number 
+    na_ratio = round(na_count/nrow(lcdf1),2) # that number of NA is being divided by the number of rows within the entire data set to give us a ratio, and we want to round the result to the second decimal.
+    missing_info = rbind(
+        missing_info,
+        data.frame( variable = col_name, missing_ratio = na_ratio, stringsAsFactors = FALSE)
+    ) # here we are simply adding the varibales we just created into that empty data frame called missing_info
+}
+```
+
+Here is a snippet of the missing_info dataframe we were able to create using the code above
+  - ![image](https://github.com/user-attachments/assets/2006193f-a841-4444-a653-f3ec772f2389)
+
+Now that we have the ratios of the values within each variable, we are able to create some sort of threshold where we able to delete variables not because all their values are NA but if a a certain percentage of their values are NA values, in this case we'll apply a 50% threshold. So if a variable has over 50% of their values being an NA value we'll delete them from thsi dataset called "lcdf2"
+
+```{r}
+# this shows the names of the variables with missing rations higher than 0.5, we are removing them
+cols_to_remove <- missing_info$variable[missing_info$missing_ratio > 0.5] 
+
+# we are removing the names extracted from the cols_to_remove, if the name appears in both datasets 
+# the column will be removed.
+lcdf2 <- lcdf1[, !(names(lcdf1) %in% cols_to_remove)]
+
+```
+
+After deleting the variables that are exceeding this threshold we are left with only 92 variables! 
+
+Now with the variables that are left, let's make sure they are not left with NA values because although we know they are not all NA values or more than 50% NA values, they can be like 49% but we can work with it for now, so let's replace the values depending on the data type.
+
+```{r}
+fill_missing_values <- function(df) { # creating a function that is called fill_missing_values
+  for (col_name in names(df)) { 
+    if (anyNA(df[[col_name]])) { # is the column has any NA values we proceed 
+
+      # Check the column type
+      if (is.numeric(df[[col_name]])) {
+        # 1. For numeric columns: fill with the median
+        median_val <- median(df[[col_name]], na.rm = TRUE) # calculating the median value to replace the NA values, this median value is not taking into account the NAs. 
+        df[[col_name]][is.na(df[[col_name]])] <- median_val # find all the NA values and replace with median_value 
+
+      } else if (is.character(df[[col_name]])) { # checking to see if the column is a character
+        # 2. For character columns: fill with "missing"
+        df[[col_name]][is.na(df[[col_name]])] <- "missing" # if it is, than replace the NA value with "missing"
+
+      } else if (is.logical(df[[col_name]])) {
+        # 3. For logical columns: fill with the majority value (TRUE or FALSE)
+        count_true <- sum(df[[col_name]] == TRUE, na.rm = TRUE)
+        count_false <- sum(df[[col_name]] == FALSE, na.rm = TRUE)
+
+        if (count_true >= count_false) {
+          df[[col_name]][is.na(df[[col_name]])] <- TRUE
+        } else {
+          df[[col_name]][is.na(df[[col_name]])] <- FALSE
+        }
+      }
+    }
+  }
+  return(df) # 
+}
 
 
+lcdf2 <- fill_missing_values(lcdf2) # is returning the new dataset into a new dataset  that is replacing the old dataset
+lcdf2 = na.omit(lcdf2) # anything that is leftover from the function just omit the row
+
+# after running the dataf rame lcdf2 through the if else statement and the na.omit function, I realized we did not add a statement for dates, so here I saw there were 64 NA values within the last_pymnt_d column so I am going to remove them. 
+lcdf2 <- lcdf2[!is.na(lcdf2$last_pymnt_d), ]
+
+missing_count = sort(colSums(is.na(lcdf2)), decreasing = TRUE) # this is a vector list 
+
+# I am using the same code as the in the exploration portion to find out if there are missing values within the columns, there are not 
+missing_df = data.frame( Column_Name = names(missing_count), Missing_Values = as.vector(missing_count))
+
+```
+
+In the previous step, we focused on handling missing values for numeric, logical, and character variables. For numeric columns, we replaced NA values with the median of that column. For logical variables—which contain only TRUE or FALSE values—we counted the frequency of each and filled missing values with the majority value. For example, if a column had 100 TRUEs and 50 FALSEs, we assigned all NAs in that column to TRUE.
+After handling those specific data types, we applied na.omit() to the dataset as a final cleanup step. This ensures that any remaining missing values—possibly from data types we didn't explicitly cover—are removed.
+When checking for missing values again using missing_count, I noticed that the last_pymnt_d column (a date column) still had 64 NAs. Since our custom function didn’t account for date types, I wrote a line of code to specifically remove rows where last_pymnt_d was missing. The logic used was:
+```
+lcdf2 <- lcdf2[!is.na(lcdf2$last_pymnt_d), ]
+
+```
+
+This line keeps only the rows where last_pymnt_d is not missing (!is.na(...)), ensuring the dataset is fully cleaned before moving on to modeling.
+
+```
+sort(missing_df, decreasing = TRUE)
+
+```
+
+![image](https://github.com/user-attachments/assets/6ed4ddac-8dd6-4dcf-844f-5e437c1515ce)
 
 
+We're all good, there are no more NA values, let's start modeling!
 
 
