@@ -1,0 +1,96 @@
+---
+title: "Decision Tree For Lending Case"
+author: "Adrian Garces"
+date: "2025-05-22"
+output: html_document
+---
+
+Cleaning the data here before modeling
+```{r}
+# this is checking with columns have only missing values, these will be removed. 
+lcdf1 %>% select_if( function(x) { all(is.na(x)) } ) %>% colnames() 
+
+#Drop vars with all empty values # after we do this we are down to 112 variables.
+lcdf1 <- lcdf1 %>% select_if(function(x){ ! all(is.na(x)) } )
+
+# let's see the proportions of missing values within a dataset 
+
+# here we are creating a empty data frame for now. the variable will be the column names, the missing ratio will be the proportion of the values within 
+missing_info = data.frame( 
+    variable = character(),
+    missing_ratio = numeric(),
+    stringsAsFactors = FALSE
+)
+
+for (col_name in names(lcdf1)) {
+    na_count = sum(is.na(lcdf1[[col_name]])) # this is counting the number of NA within the columns and returning a number 
+    na_ratio = round(na_count/nrow(lcdf1),2) # that number of NA is being divided by the number of rows within the entire data set to give us a ratio, and we want to round the result to the second decimal.
+    missing_info = rbind(
+        missing_info,
+        data.frame( variable = col_name, missing_ratio = na_ratio, stringsAsFactors = FALSE)
+    ) # here we are simply adding the varibales we just created into that empty data frame called missing_info
+}
+
+
+
+missing_info# this shows the variables and their missing ration
+
+
+# this shows the names of the variables with missing rations higher than 0.5, we are removing them
+cols_to_remove <- missing_info$variable[missing_info$missing_ratio > 0.5] 
+
+# we are removing the names extracted from the cols_to_remove, if the name appears in both datasets 
+# the column will be removed.
+lcdf2 <- lcdf1[, !(names(lcdf1) %in% cols_to_remove)]
+
+# new structure
+str(lcdf2)
+
+
+fill_missing_values <- function(df) { # creating a function that is called fill_missing_values
+  for (col_name in names(df)) { 
+    if (anyNA(df[[col_name]])) { # is the column has any NA values we proceed 
+
+      # Check the column type
+      if (is.numeric(df[[col_name]])) {
+        # 1. For numeric columns: fill with the median
+        median_val <- median(df[[col_name]], na.rm = TRUE) # calculating the median value to replace the NA values, this median value is not taking into account the NAs. 
+        df[[col_name]][is.na(df[[col_name]])] <- median_val # find all the NA values and replace with median_value 
+
+      } else if (is.character(df[[col_name]])) { # checking to see if the column is a character
+        # 2. For character columns: fill with "missing"
+        df[[col_name]][is.na(df[[col_name]])] <- "missing" # if it is, than replace the NA value with "missing"
+
+      } else if (is.logical(df[[col_name]])) {
+        # 3. For logical columns: fill with the majority value (TRUE or FALSE)
+        count_true <- sum(df[[col_name]] == TRUE, na.rm = TRUE)
+        count_false <- sum(df[[col_name]] == FALSE, na.rm = TRUE)
+
+        if (count_true >= count_false) {
+          df[[col_name]][is.na(df[[col_name]])] <- TRUE
+        } else {
+          df[[col_name]][is.na(df[[col_name]])] <- FALSE
+        }
+      }
+    }
+  }
+  return(df)
+}
+
+
+lcdf2 <- fill_missing_values(lcdf2)
+lcdf2 = na.omit(lcdf2) # anything that is leftover from the function just omit the row
+
+
+# after running the dataf rame lcdf2 through the if else statement and the na.omit function, I realized we did not add a statement for dates, so here I saw there were 64 NA values within the last_pymnt_d column so I am going to remove them. 
+lcdf2 <- lcdf2[!is.na(lcdf2$last_pymnt_d), ]
+
+missing_count = sort(colSums(is.na(lcdf2)), decreasing = TRUE) # this is a vector list 
+
+# I am using the same code as the in the exploration portion to find out if there are missing values within the columns, there are not 
+missing_df = data.frame( Column_Name = names(missing_count), Missing_Values = as.vector(missing_count))
+
+sort(missing_df, decreasing = TRUE)
+
+str(lcdf2)
+```
