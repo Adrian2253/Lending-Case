@@ -107,8 +107,9 @@ Let's take this model line by line quickly go over key terms that will continue 
 
 - rpart: Recursive Partion, this is being used from the rpart package and is creating a decision tree for us to use to determine if a loan will either be "charged off" or "fully paid"!
 - Loan_status is the target variable so this is the first input
-- ~ this means we are using all other variables as predictors
+- ~. this means we are using all other variables as predictors
 - %>% piping
+- data = lcdfTrn, if we look back to last piece of code we can see this is the training set we created from the original cleaned data set which is called "lcdf2"
 - select(-all_if(varsOmit)), takes the training dataset lcdfTrn2, and remove the columns listed in varsOmit before using it to train the model.
 - parms = parameters
 - split = "information" tells the decision tree to choose splits based on information gain, which looks for the variable and value that best reduces uncertainty about the target (like loan status). It's a solid, commonly used method for classification problems.
