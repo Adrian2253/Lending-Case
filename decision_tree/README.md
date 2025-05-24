@@ -115,4 +115,174 @@ Let's take this model line by line quickly go over key terms that will continue 
 - split = "information" tells the decision tree to choose splits based on information gain, which looks for the variable and value that best reduces uncertainty about the target (like loan status). It's a solid, commonly used method for classification problems.
 - minsplit = 30, means a node must have at least 30 observations in it before it can be split. This helps control how complex the tree becomes and protects against overfitting by avoiding splits based on very small groups of data.
 
-  
+
+### Model 1 Results
+
+```
+print(lcDT1a)
+
+Classification tree:
+rpart(formula = loan_status ~ ., data = lcdfTrn %>% select(-all_of(varsOmit)), 
+    method = "class", parms = list(split = "information"), control = rpart.control(minsplit = 30))
+
+Variables actually used in tree construction:
+[1] issue_d         last_pymnt_amnt last_pymnt_d    loan_amnt      
+[5] total_rec_int  
+
+Root node error: 9738/70044 = 0.13903
+
+n= 70044 
+
+         CP nsplit rel error  xerror      xstd
+1  0.125009      0   1.00000 1.00000 0.0094029
+2  0.092524      3   0.62497 0.62641 0.0076632
+3  0.031423      4   0.53245 0.53420 0.0071262
+4  0.020538      5   0.50103 0.50288 0.0069304
+5  0.018587      8   0.43941 0.46478 0.0066816
+6  0.015506      9   0.42083 0.43797 0.0064990
+7  0.012220     10   0.40532 0.41230 0.0063176
+8  0.011604     11   0.39310 0.40491 0.0062642
+9  0.010885     12   0.38150 0.39998 0.0062282
+10 0.010000     13   0.37061 0.38889 0.0061462
+
+```
+
+Let's interpret these results 
+
+1. Classiciation Trees: Just reiterating the model that we area using, all the parameters were as mentioned in the code listed before it.
+2. Variables Actually Used in Tree Construction: The only variables that the model actually used within the model that produced any meaningful insight within the parameters we established  such as minsplit = 30 and type of split method we are using.
+3. Root Node Error: This portion is basically assuming that is we just labeled each value in the dataset as the majority class, which in this case would be "Fully Paid" what percentage of the rows would be misclassified aka not labeled right. 
+ - 9738 would be labeled incorrectly
+ - 70044 are the total amount of rows in the data set used in the model
+ - 0.13903 is the error rate
+
+Table 
+
+1. CP (Complexity Parameter) is a value used to control the size of the decision tree and prevent overfitting. It acts as a penalty for adding more splits to the tree. A higher CP value makes the tree more conservative (fewer splits), helping to avoid overfitting by forcing the model to generalize more. A lower CP value allows more splits, which can lead to a very detailed tree that may fit the training data too closely — potentially capturing noise or outliers rather than true patterns.
+Overfitting happens when a model fits the training data too perfectly — including rare exceptions or outliers — which hurts its ability to generalize to new data. In real-world applications, we aim for a model that captures the general structure of the data while ignoring noise.
+
+2. rel error represents the model's error on the training data, relative to the root node error. For example, a value of 0.37061 means the model has reduced the error to 37.1% of the original baseline error (before any splits).
+
+3. xerror is the cross-validated error rate — an estimate of how well the model would perform on unseen data. It’s the key metric for identifying potential overfitting.
+4.  xstd is the standard deviation of the xerror value, giving you a sense of variability in the cross-validation results. It's often used with the 1-SE rule to choose a simpler, more robust model.
+
+Training Data Results from Model 
+```
+predTrn = predict(lcDT1a, lcdfTrn, type = 'class')
+
+confusionMatrix(predTrn, lcdfTrn$loan_status)
+
+# results
+Confusion Matrix and Statistics
+
+             Reference
+Prediction    Fully Paid Charged Off
+  Fully Paid       58557        1522
+  Charged Off       1663        8167
+                                         
+               Accuracy : 0.9544         
+                 95% CI : (0.9529, 0.956)
+    No Information Rate : 0.8614         
+    P-Value [Acc > NIR] : < 2e-16        
+                                         
+                  Kappa : 0.8104         
+                                         
+ Mcnemar's Test P-Value : 0.01311        
+                                         
+            Sensitivity : 0.9724         
+            Specificity : 0.8429         
+         Pos Pred Value : 0.9747         
+         Neg Pred Value : 0.8308         
+             Prevalence : 0.8614         
+         Detection Rate : 0.8376         
+   Detection Prevalence : 0.8594         
+      Balanced Accuracy : 0.9076         
+                                         
+       'Positive' Class : Fully Paid  
+
+```
+
+As a whole this model did very well on being able to distinguish  between Fully Paid and Charged Off loans compared to the actual results of the training data completing 95.4% accuracy! Now let's compare it to the testing data 
+
+
+Testing Data Results from Model 
+
+```
+predtest = predict(lcDT1a, lcdfTest, type = 'class')
+
+confusionMatrix(predtest, lcdfTest$loan_status)
+
+Confusion Matrix and Statistics
+
+             Reference
+Prediction    Fully Paid Charged Off
+  Fully Paid       25274         634
+  Charged Off        687        3455
+                                          
+               Accuracy : 0.956           
+                 95% CI : (0.9537, 0.9583)
+    No Information Rate : 0.8639          
+    P-Value [Acc > NIR] : <2e-16          
+                                          
+                  Kappa : 0.814           
+                                          
+ Mcnemar's Test P-Value : 0.1525          
+                                          
+            Sensitivity : 0.9735          
+            Specificity : 0.8449          
+         Pos Pred Value : 0.9755          
+         Neg Pred Value : 0.8341          
+             Prevalence : 0.8639          
+         Detection Rate : 0.8411          
+   Detection Prevalence : 0.8622          
+      Balanced Accuracy : 0.9092          
+                                          
+       'Positive' Class : Fully Paid     
+
+
+```
+
+As a note, the reason we are using the type "class" code is to ensure when the function is running the testing set through the model, it is returning either " Fully Paid Off" or "Charged Off", if this code was not here the default would be a duo table with each row having probabilities for either option. 
+
+The model achieved an accuracy of 95.6% on the test set, with high sensitivity (97.4%) and specificity 
+(84.5%), indicating strong performance in correctly identifying both Fully Paid and Charged Off loans. The Kappa score of 0.81 suggests excellent agreement beyond chance, and McNemar’s test (p = 0.15) shows no significant bias between false positives and false negatives. Overall, the model generalizes well and maintains a balanced classification performance.
+
+### ROC Curve 
+![image](https://github.com/user-attachments/assets/1a7d3185-c635-442d-8942-53a03563ac2e)
+
+- ROC Curve: This curve illustrates how well the model distinguishes between classes by plotting the true positive rate (sensitivity) against the false positive rate across different classification thresholds. A strong model will have a ROC curve that hugs the top-left corner of the graph, indicating high sensitivity and low false positives — which increases the Area Under the Curve (AUC).
+An AUC of 0.5 represents random guessing (no discriminative ability), while an AUC of 0.954 for this model shows it can distinguish between "Fully Paid" and "Charged Off" loans with high effectiveness. This means the model can correctly rank borrowers by risk with 95.4% confidence, independent of a specific threshold.
+
+- The red line is the baseline measurement, aka is this model better at distinguishing between classes
+  better than guessing
+
+### Lift Curve 
+
+```
+score=predict(lcDT1a,lcdfTest, type="prob")[,"Charged Off"]
+pred = prediction(score, lcdfTest$loan_status, label.ordering = c("Fully Paid", "Charged Off"))
+
+liftPerf <-performance(pred, "lift", "rpp")
+plot(liftPerf, main = 'Lift Curve for Loan Status Model')
+
+
+```
+
+![image](https://github.com/user-attachments/assets/e8d1b015-df70-4885-8511-05850f70fda7)
+
+I mentioned before that when I used the predict function, we wanted it to use the classication method signified as type = "class", the reason being is that usually the function returns probabilities if the target variable is x or y. Example can be seen below!
+
+```
+    Fully Paid Charged Off
+1     0.99778873 0.002211271
+2     0.99778873 0.002211271
+3     0.95326520 0.046734796
+4     0.99778873 0.002211271
+6     0.99778873 0.002211271
+7     0.95988935 0.040110650
+8     0.99778873 0.002211271
+9     0.95515371 0.044846293
+
+```
+
+The lift curve shows that, by setting "Charged Off" as the positive class, the model identifies high-risk loans with strong early precision. In the top 10% of predictions, it flags Charged Off loans at 7 times the rate of random guessing, indicating strong lift. This makes the model valuable for proactively identifying and denying high-risk loan applications, helping reduce potential losses.
