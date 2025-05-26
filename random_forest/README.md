@@ -208,6 +208,8 @@ Recap: If the loan term is greater than zero, calculate the return as the differ
 
 ```
 
+Model Evaluation: 
+
 So now this model is telling us how much return on investment we would get based on x amount funded in an anually percentage form. 
 
 
@@ -219,6 +221,156 @@ plot(rfPredRet_trn$predictions, lcdfTrn$actualReturn,
      main = "Predicted vs Actual Loan Returns (Testing Set)")
 
 ```
+
+![image](https://github.com/user-attachments/assets/80a3b49f-f87a-429f-9870-7068a6bfa0d0)
+ 
+
+There is a tight line that is following a pattern showcasing that on the testing data, when the actual return was high, the model returned a high return and vice versa.
+
+
+RMSE, R2, and MAE
+
+
+```
+postResample(pred = rfPredRet_trn$predictions, obs = lcdfTrn$actualReturn)
+     RMSE  Rsquared       MAE 
+0.7429694 0.9934509 0.3404511 
+
+```
+
+These values are another way of evaluating a regression model, but here we are more so measuring the numeric outputs from our random forrest model. 
+
+1.3. Mean Absolute Error [MAE]: Mean Absolute Error (MAE) is a statistical measure that evaluates the accuracy of a predictive or forecasting model by calculating the average of the absolute differences between predicted and actual values. It is not normalized, so the value is relevant to the data distribution of the target variable, in this case our predictions are off by 0.34%. 
+2. RSE: It is an absolute measure of the average distance that the data points fall from the predicted values using the units of the dependent variable. It can assess prediction precision directly. This is not a normalized value, so it is not between 0 and 1, it needs to be intpreted within the context of the dataset, here we are measuring actual returns in percentages so this figure being smaller and close to 0 is very good, but since this figure is bigger than the MAE value we can assume the model has some outliets that is skewing the data in some aspects, but nothing crazy. 
+3. R2: This measure explains how well our model is able to explain the variance within the target variable. in this case our model is about to explain around 99.3% of the variance in actual returns. This is extremly high and we have to ensure the model is not overfitting to the training data. 
+
+Overall, the model demonstrates excellent performance on the training data. However, the true test lies in how well it generalizes to unseen data. Next, we’ll evaluate its performance on the test set—and if the results hold, we can begin using the model to generate actionable insights and investment strategies based on loan grades.
+
+
+
+Testing Set Validation 
+
+```
+rfModel_Ret <- ranger(actualReturn ~., data=subset(lcdfTrn, select=-c(annRet, actualTerm, loan_status)), num.trees =300, # added another 100 trees 
+importance='permutation')
+
+
+# testing set on the model 
+rfPredRet_tst <- predict(rfModel_Ret, lcdfTest)
+
+
+```
+
+
+Results 
+
+![image](https://github.com/user-attachments/assets/4de9920f-50a0-49c5-8418-43e7a0dadfe0)
+
+The line appears less tight compared to the training data predictions, suggesting weaker performance at a glance. However, the previous model may have been overly optimistic, potentially overfitting the training data. Let's now evaluate this model using additional performance metrics to get a clearer picture.
+
+RMSE, R2, and MAE
+
+
+```
+
+postResample(pred = rfPredRet_tst$predictions, obs = lcdfTest$actualReturn)
+     RMSE  Rsquared       MAE 
+3.3530997 0.8604674 1.6635523
+
+# calculating the range of the actual returns
+range(lcdfTest$actualReturn)
+[1] -33.33333  38.13311
+> 38.13311 + 33.33333
+[1] 71.46644
+
+```
+
+The model has a strong performance on unseen data, explaining 86% of the variation in actual returns. The average prediction is off by about 1.66 percentage points. When compared to the full return range (~72%), this error is relatively small — about 2.3% of the span — suggesting that the model is generally precise, though individual prediction deviations may still occur.
+
+
+Predicted Returns by Decile
+```
+# Get predicted returns for testing data
+predRet_Tst <- lcdfTest %>%
+  select(grade, loan_status, actualReturn, actualTerm, int_rate) %>%
+  mutate(predRet = rfPredRet_tst$predictions)
+```
+
+In this step, we create a new dataset from the test data, retaining only the variables of interest: grade, loan_status, actualReturn, actualTerm, and int_rate. We also add a new column called predRet, which holds the model's predicted returns from the test set.
+
+```
+# Assign decile based on predicted return (higher returns = top decile)
+predRet_Tst <- predRet_Tst %>%
+  mutate(tile = ntile(-predRet, 10))
+```
+
+Next, we assign each observation to a decile based on its predicted return using the ntile() function. By negating predRet, we ensure that higher predicted returns are placed in the top deciles (e.g., decile 1 = highest returns).
+
+```
+# Summarize performance by decile on test data
+PerfByDecileRFActualReturns_Tst <- predRet_Tst %>%
+  group_by(tile) %>%
+  summarise(
+    count = n(),
+    avgpredRet = mean(predRet),
+    numDefaults = sum(loan_status == "Charged Off"),
+    avgActRet = mean(actualReturn),
+    minRet = min(actualReturn),
+    maxRet = max(actualReturn),
+    avgTer = mean(actualTerm),
+    totA = sum(grade == "A"),
+    totB = sum(grade == "B"),
+    totC = sum(grade == "C"),
+    totD = sum(grade == "D"),
+    totE = sum(grade == "E"),
+    totF = sum(grade == "F")
+  )
+View(PerfByDecileRFActualReturns_Tst)
+
+```
+Finally, we summarize model performance by decile. This table helps evaluate how the predicted return correlates with actual performance. For each decile, we calculate:
+
+- Number of observations
+- Average predicted return
+- Number of defaults (Charged Off)
+- Average, minimum, and maximum actual returns
+- Average loan term
+- Count of loans by grade (A–F)
+
+![image](https://github.com/user-attachments/assets/33682791-95b3-4cb3-8031-fe0170692835)
+
+```
+imp = importance(rfModel_Ret)
+
+imp_df = data.frame(
+    variable = names(imp),
+    Importance = as.numeric(imp)
+)
+
+
+imp_df_sorted = imp_df %>%
+    arrange(desc(Importance))
+
+
+
+variable        Importance
+total_rec_prncp	78.37270			
+total_pymnt_inv	71.23343			
+total_pymnt	    69.66334			
+recoveries	     60.73272			
+last_pymnt_amnt	58.02636			
+funded_amnt_inv	57.76440			
+loan_amnt	      57.44792			
+funded_amnt	    57.02822			
+collection_recovery_fee	56.76613			
+installment	    55.47951	
+
+```
+
+
+The model performs exceptionally well—its predicted return tiles closely align with the actual return tiles, indicating strong predictive accuracy. If we were presenting investment recommendations based on this analysis, loan grades C and D would stand out. These two grades have the highest average returns and only six combined defaults out of 6,010 observations in their respective top-performing tiles. Additionally, we can identify which variables are most influential in driving the model’s predictions. This insight helps us understand not only which loans are likely to be most profitable based on unseen test data, but also what factors to focus on when evaluating future loan opportunities. 
+
+
 
 
 
