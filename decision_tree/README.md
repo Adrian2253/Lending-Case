@@ -1,5 +1,7 @@
  # Decision Tree Modeling for Loan Status Prediction Using the rpart Package
 
+### Reminder: This specific subproject applies a decision tree model to predict whether a loan will be Fully Paid or Charged Off, supporting risk-based decisions in lending.
+
 ### Creating a Training and Testing Split 
 
 ```
@@ -286,3 +288,7 @@ I mentioned before that when I used the predict function, we wanted it to use th
 ```
 
 The lift curve shows that, by setting "Charged Off" as the positive class, the model identifies high-risk loans with strong early precision. In the top 10% of predictions, it flags Charged Off loans at 7 times the rate of random guessing, indicating strong lift. This makes the model valuable for proactively identifying and denying high-risk loan applications, helping reduce potential losses.
+
+
+### Business Takeaway: The decision tree model effectively flags high-risk loans, enabling lenders to intervene early (e.g., deny, review, or require more verification). This approach helps mitigate charge-offs and protect investor returns.
+
