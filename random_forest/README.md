@@ -183,4 +183,42 @@ Prediction    Fully Paid Charged Off
 
 ```
 
-I won't go into the terminalogy like before, but this model is very strong having high accuracy as well as a high Sensitivity and Specificity!
+I won't go into the terminalogy like before, but this model is very strong having high accuracy as well as a high Sensitivity and Specificity! This is just a comparison point to compare how a random forrest model compares to our decision tree model before, but next we are going create a random forrest model where actual returns are the target variable and see if we are able to predict an investors return on each loan. 
+
+
+### Random Forrest Model for Actual Returns 
+
+```
+
+rfModel_Ret <- ranger(actualReturn ~.,
+data=subset(lcdfTrn,
+select=-c(annRet, actualTerm, loan_status)),
+num.trees =200,
+importance='permutation')
+
+
+```
+
+This is not a classifcation result anymore, in the past we wanted to find out whether a loan will be paid off or if the loan will default. We are now asking the model to return to us the actual returns for each loan, "actualReturns" is our target variable. As a refresher, actualReturns was calculated using the code below
+
+```
+lcdf1$actualReturn <- ifelse(lcdf1$actualTerm>0, ((lcdf1$total_pymnt -lcdf1$funded_amnt)/lcdf1$funded_amnt)*(1/lcdf1$actualTerm)*100, 0)
+
+Recap: If the loan term is greater than zero, calculate the return as the difference between the amount repaid by the borrower and the original loan amount, divide that differnce by the original loan amount. To express this as an annualized percentage return, divide the result by the loan term, multiply by the original loan amount, and then multiply by 100 to convert it into a percentage. Anythign else the returns are 0.
+
+```
+
+So now this model is telling us how much return on investment we would get based on x amount funded in an anually percentage form. 
+
+
+```
+# Plot the actual vs. predicted values
+plot(rfPredRet_trn$predictions, lcdfTrn$actualReturn,
+     xlab = "Predicted Return",
+     ylab = "Actual Return",
+     main = "Predicted vs Actual Loan Returns (Testing Set)")
+
+```
+
+
+
