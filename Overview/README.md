@@ -19,8 +19,7 @@ This repository is organized into modular folders to showcase different aspects 
 | `random_forest/` | Random Forest model implementation and evaluation |
 | `decision_tree/` | Decision Tree model and interpretation |
 | `linear_model/` | Logistic Regression and linear classification modeling |
-| `model_comparison/` | Side-by-side comparison of model performance metrics (e.g., accuracy, AUC) |
-| `profitability_analysis/` | Analysis of predicted loan outcomes vs. actual returns to evaluate investor profitability by grade |
+
 
 Each folder includes an R script or RMarkdown file with documentation and visuals.
 
