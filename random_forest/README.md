@@ -1,10 +1,13 @@
 # Random Forrest Model:
 
-In this step, we train a Random Forest classifier using the ranger package to predict whether a loan is Fully Paid or Charged Off. We use 200 trees and enable permutation-based variable importance to identify which features contribute most to the prediction.
+In this step, we train a Random Forest classifier using the ranger package to predict whether a loan is Fully Paid or Charged Off. We use 200 trees and enable permutation-based variable importance to identify which features contribute most to the prediction. This project uses historical Lending Club data that the decision tree folder and decision tree folder started with to build a predictive model that estimates the expected return on personal loans. The goal is to support investment decisions by identifying loans likely to yield higher returns with minimal default risk.
 
-What is a Random Forrest? 
+### Business Objective 
 
-A random forrest curates individual trees, in this case within the example we are creating 200 different trees
+1. Which loan grades offer the highest returns
+2. How reliably we can predict those returns using loan-level features
+
+### Random Forrest Model
 
 ```
 rfModel1 <- ranger(loan_status ~., data=lcdfTrn %>%
@@ -43,11 +46,11 @@ OOB prediction error (Brier s.):  0.02493399
 
 - **Mtry**: Choosing 6 random variables and determing which is giving the best split using the gini split method
 - **Target Node Size:** Each node needs to have at least 10 observation
-- **Variable Importance Mode --> Permutation**: 
-The permutation importance method works by randomly shuffling the values of a single predictor variable across the dataset and measuring how much the model’s performance decreases as a result. If shuffling a variable's values causes a large increase in prediction error (e.g., Brier score or misclassification rate), then the variable is considered important — because the model relied heavily on that variable to make accurate predictions. If shuffling has little to no effect, then the model didn’t depend much on that variable, so it's considered less important.
+- **Variable Importance Mode --> Permutation**: The permutation importance method works by randomly shuffling the values of a single predictor variable across the dataset and measuring how much the model’s performance decreases as a result. If shuffling a variable's values causes a large increase in prediction error (e.g., Brier score or misclassification rate), then the variable is considered important — because the model relied heavily on that variable to make accurate predictions. If shuffling has little to no effect, then the model didn’t depend much on that variable, so it's considered less important.
 - **Gini**: The idea is to create splits that create "pure" nodes, aka, nodes with majority classes.
 -OOB Prediction Error (Brier Score): Random Forest models use an internal cross-validation method called **Out-of-Bag (OOB) estimation:** Each tree is trained on a bootstrap sample (roughly 70% of the data, sampled with replacement), and the remaining ~30% of data — not seen by the tree — is used to evaluate the tree’s prediction. The model aggregates these OOB predictions across all trees to estimate generalization error.
 In this case, the OOB error is reported as a Brier score of 0.0249, which is a measure of how close the predicted probabilities are to the true outcomes. A lower Brier score indicates better calibrated probabilistic predictions — and 0.0249 is considered quite low, suggesting strong model performance.
+
 ### Variable Importance 
 
 ```
@@ -92,7 +95,7 @@ This reveals which variables most influence the prediction. Higher importance va
 
 
 
-Training Predictions and Classification Performance
+### Training Predictions and Classification Performance
 
 ```
 scoreTrn <- predict(rfModel1, lcdfTrn)
@@ -186,7 +189,7 @@ Prediction    Fully Paid Charged Off
 I won't go into the terminalogy like before, but this model is very strong having high accuracy as well as a high Sensitivity and Specificity! This is just a comparison point to compare how a random forrest model compares to our decision tree model before, but next we are going create a random forrest model where actual returns are the target variable and see if we are able to predict an investors return on each loan. 
 
 
-### Random Forrest Model for Actual Returns 
+## Random Forrest Model for Actual Returns 
 
 ```
 
@@ -208,7 +211,7 @@ Recap: If the loan term is greater than zero, calculate the return as the differ
 
 ```
 
-Model Evaluation: 
+### Model Evaluation: 
 
 So now this model is telling us how much return on investment we would get based on x amount funded in an anually percentage form. 
 
@@ -228,7 +231,7 @@ plot(rfPredRet_trn$predictions, lcdfTrn$actualReturn,
 There is a tight line that is following a pattern showcasing that on the testing data, when the actual return was high, the model returned a high return and vice versa.
 
 
-RMSE, R2, and MAE
+### RMSE, R2, and MAE
 
 
 ```
@@ -244,11 +247,11 @@ These values are another way of evaluating a regression model, but here we are m
 2. RSE: It is an absolute measure of the average distance that the data points fall from the predicted values using the units of the dependent variable. It can assess prediction precision directly. This is not a normalized value, so it is not between 0 and 1, it needs to be intpreted within the context of the dataset, here we are measuring actual returns in percentages so this figure being smaller and close to 0 is very good, but since this figure is bigger than the MAE value we can assume the model has some outliets that is skewing the data in some aspects, but nothing crazy. 
 3. R2: This measure explains how well our model is able to explain the variance within the target variable. in this case our model is about to explain around 99.3% of the variance in actual returns. This is extremly high and we have to ensure the model is not overfitting to the training data. 
 
-Overall, the model demonstrates excellent performance on the training data. However, the true test lies in how well it generalizes to unseen data. Next, we’ll evaluate its performance on the test set—and if the results hold, we can begin using the model to generate actionable insights and investment strategies based on loan grades.
+Overall, the model demonstrates excellent performance on the training data. However, the true test lies in how well it generalizes to unseen data. 
 
 
 
-Testing Set Validation 
+### Testing Set Validation 
 
 ```
 rfModel_Ret <- ranger(actualReturn ~., data=subset(lcdfTrn, select=-c(annRet, actualTerm, loan_status)), num.trees =300, # added another 100 trees 
@@ -260,15 +263,13 @@ rfPredRet_tst <- predict(rfModel_Ret, lcdfTest)
 
 
 ```
-
-
-Results 
+ 
 
 ![image](https://github.com/user-attachments/assets/4de9920f-50a0-49c5-8418-43e7a0dadfe0)
 
 The line appears less tight compared to the training data predictions, suggesting weaker performance at a glance. However, the previous model may have been overly optimistic, potentially overfitting the training data. Let's now evaluate this model using additional performance metrics to get a clearer picture.
 
-RMSE, R2, and MAE
+### RMSE, R2, and MAE
 
 
 ```
@@ -288,7 +289,7 @@ range(lcdfTest$actualReturn)
 The model has a strong performance on unseen data, explaining 86% of the variation in actual returns. The average prediction is off by about 1.66 percentage points. When compared to the full return range (~72%), this error is relatively small — about 2.3% of the span — suggesting that the model is generally precise, though individual prediction deviations may still occur.
 
 
-Predicted Returns by Decile
+### Predicted Returns by Decile
 ```
 # Get predicted returns for testing data
 predRet_Tst <- lcdfTest %>%
@@ -339,7 +340,7 @@ Finally, we summarize model performance by decile. This table helps evaluate how
 
 ![image](https://github.com/user-attachments/assets/33682791-95b3-4cb3-8031-fe0170692835)
 
-Model Variable Importance 
+### Model Variable Importance 
 
 
 ```
@@ -370,11 +371,20 @@ ggplot(imp_df_sorted, aes(x = variable, y = Importance)) +
 ![image](https://github.com/user-attachments/assets/c3d942d6-18bc-40de-8c41-0b65f5b3bcc5)
 
 
-Final Takeaways 
+## Investment Strategy Insights 
 
-The model performs exceptionally well—its predicted return tiles closely align with the actual return tiles, indicating strong predictive accuracy. If we were presenting investment recommendations based on this analysis, loan grades C and D would stand out. These two grades have the highest average returns and only six combined defaults out of 6,010 observations in their respective top-performing tiles. Additionally, we can identify which variables are most influential in driving the model’s predictions. This insight helps us understand not only which loans are likely to be most profitable based on unseen test data, but also what factors to focus on when evaluating future loan opportunities. 
+Using the model's predictions, we segmented loans into deciles. The top deciles by predicted return matched the highest actual returns, showing the model's strong ranking ability. If you were to invest in the top deciles, particularly grades C and D, you would receive high returns with relatively low risk.
 
 
 
+### Tools Used
+
+- Language: R
+- Libraries: ranger, caret, tidyverse, ggplot2
+- Techniques:
+   - Ensemble learning (Random Forest)
+   - Model evaluation (RMSE, MAE, R^2, Brier Score)
+   - Feature importance
+   - Decile/tile analysis for strategy segmentation
 
 
