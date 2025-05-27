@@ -1,0 +1,159 @@
+---
+title: "Lending Case - Random Forrest"
+author: "Adrian Garces"
+date: "2025-05-26"
+output: html_document
+---
+
+```{r}
+
+library(ranger)
+lcdfTrn$loan_status <- as.factor(lcdfTrn$loan_status)
+
+rfModel1 <- ranger(loan_status ~., data=lcdfTrn %>%  select(-all_of(varsOmit)), num.trees = 200, importance='permutation', probability = TRUE)
+
+vimp_rfGp<-importance(rfModel1)
+vimp_rfGp %>% View()
+
+#Get the predictions -- look into the returned object
+scoreTrn <- predict(rfModel1,lcdfTrn)
+head(scoreTrn$predictions)
+
+#classification performance , at specific threshold 
+pred_label <- factor(ifelse(scoreTrn$predictions[,"Fully Paid"] > 0.7, "Fully Paid", "Charged Off"))
+table(Prediction = pred_label, Actual = lcdfTrn$loan_status)
+
+confusionMatrix(pred_label , lcdfTrn$loan_status)
+
+RFscoreTest = predict(rfModel1,lcdfTest)
+
+RF_pred_tst_label = factor(ifelse(RFscoreTest$predictions[,"Fully Paid"] > 0.7, "Fully Paid","Charged Off"))
+
+confusionMatrix(RF_pred_tst_label, lcdfTest$loan_status)
+
+
+
+
+
+```
+
+
+Actual Returns Model 
+
+```{r}
+
+rfModel_Ret <- ranger(actualReturn ~., data=subset(lcdfTrn, select=-c(annRet, actualTerm, loan_status)), num.trees =300,
+importance='permutation')
+
+importance(rfModel_Ret)
+
+rfPredRet_trn <- predict(rfModel_Ret, lcdfTrn)
+
+postResample(pred = rfPredRet_trn$predictions, obs = lcdfTrn$actualReturn)
+range(lcdfTrn$actualReturn)
+
+
+# Plot the actual vs. predicted values
+plot(rfPredRet_trn$predictions, lcdfTrn$actualReturn,
+     xlab = "Predicted Return",
+     ylab = "Actual Return",
+     main = "Predicted vs Actual Loan Returns (Testing Set)")
+
+
+
+
+
+# performance by decile on the training data 
+
+predRet_Trn <- lcdfTrn %>% select(grade, loan_status, actualReturn, actualTerm, int_rate) %>%
+mutate(predRet=(predict(rfModel_Ret, lcdfTrn))$predictions)
+
+predRet_Trn <- predRet_Trn %>% mutate(tile=ntile(-predRet, 10))
+
+PerfByDecileRFActualReturns = predRet_Trn %>% group_by(tile) %>% summarise(count=n(), 
+                                                                           avgpredRet=mean(predRet), numDefaults=sum(loan_status=="Charged Off"),
+avgActRet=mean(actualReturn), minRet=min(actualReturn), maxRet=max(actualReturn), avgTer=mean(actualTerm), totA=sum(grade=="A"),
+totB=sum(grade=="B" ), totC=sum(grade=="C"), totD=sum(grade=="D"), totE=sum(grade=="E"), totF=sum(grade=="F") )
+
+View(PerfByDecileRFActualReturns)
+```
+
+RF Model now comparing on testing data 
+```{r}
+
+rfModel_Ret <- ranger(actualReturn ~., data=subset(lcdfTrn, select=-c(annRet, actualTerm, loan_status)), num.trees =300,
+importance='permutation')
+
+rfPredRet_tst <- predict(rfModel_Ret, lcdfTest)
+
+postResample(pred = rfPredRet_tst$predictions, obs = lcdfTest$actualReturn)
+
+range(lcdfTest$actualReturn)
+
+
+# Plot the actual vs. predicted values
+plot(rfPredRet_tst$predictions, lcdfTest$actualReturn,
+     xlab = "Predicted Return",
+     ylab = "Actual Return",
+     main = "Predicted vs Actual Loan Returns (Testing Set)")
+
+```
+
+
+Predicted Returns
+
+```{r}
+
+# Get predicted returns for testing data
+predRet_Tst <- lcdfTest %>%
+  select(grade, loan_status, actualReturn, actualTerm, int_rate) %>%
+  mutate(predRet = rfPredRet_tst$predictions)
+
+# Assign decile based on predicted return (higher returns = top decile)
+predRet_Tst <- predRet_Tst %>%
+  mutate(tile = ntile(-predRet, 10))
+
+# Summarize performance by decile on test data
+PerfByDecileRFActualReturns_Tst <- predRet_Tst %>%
+  group_by(tile) %>%
+  summarise(
+    count = n(),
+    avgpredRet = mean(predRet),
+    numDefaults = sum(loan_status == "Charged Off"),
+    avgActRet = mean(actualReturn),
+    minRet = min(actualReturn),
+    maxRet = max(actualReturn),
+    avgTer = mean(actualTerm),
+    totA = sum(grade == "A"),
+    totB = sum(grade == "B"),
+    totC = sum(grade == "C"),
+    totD = sum(grade == "D"),
+    totE = sum(grade == "E"),
+    totF = sum(grade == "F")
+  )
+View(PerfByDecileRFActualReturns_Tst)
+
+imp = importance(rfModel_Ret)
+
+imp_df = data.frame(
+    variable = names(imp),
+    Importance = as.numeric(imp)
+)
+
+
+imp_df_sorted = imp_df %>%
+    arrange(desc(Importance)) %>% 
+    slice(1:10)
+
+
+ggplot(imp_df_sorted, aes(x = variable, y = Importance)) +
+  geom_bar(stat = "identity", fill = "plum4") +
+  coord_flip() +
+  labs(title = "Top 10 Variable Importances",
+       x = "Variable",
+       y = "Importance (Permutation)") +
+  theme_minimal()
+
+```
+
+
