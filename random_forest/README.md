@@ -339,6 +339,9 @@ Finally, we summarize model performance by decile. This table helps evaluate how
 
 ![image](https://github.com/user-attachments/assets/33682791-95b3-4cb3-8031-fe0170692835)
 
+Model Variable Importance 
+
+
 ```
 imp = importance(rfModel_Ret)
 
@@ -349,24 +352,25 @@ imp_df = data.frame(
 
 
 imp_df_sorted = imp_df %>%
-    arrange(desc(Importance))
+    arrange(desc(Importance)) %>% 
+    slice(1:10)
 
 
+ggplot(imp_df_sorted, aes(x = variable, y = Importance)) +
+  geom_bar(stat = "identity", fill = "plum4") +
+  coord_flip() +
+  labs(title = "Top 10 Variable Importances",
+       x = "Variable",
+       y = "Importance (Permutation)") +
+  theme_minimal()
 
-variable        Importance
-total_rec_prncp	78.37270			
-total_pymnt_inv	71.23343			
-total_pymnt	    69.66334			
-recoveries	     60.73272			
-last_pymnt_amnt	58.02636			
-funded_amnt_inv	57.76440			
-loan_amnt	      57.44792			
-funded_amnt	    57.02822			
-collection_recovery_fee	56.76613			
-installment	    55.47951	
 
 ```
 
+![image](https://github.com/user-attachments/assets/c3d942d6-18bc-40de-8c41-0b65f5b3bcc5)
+
+
+Final Takeaways 
 
 The model performs exceptionally well—its predicted return tiles closely align with the actual return tiles, indicating strong predictive accuracy. If we were presenting investment recommendations based on this analysis, loan grades C and D would stand out. These two grades have the highest average returns and only six combined defaults out of 6,010 observations in their respective top-performing tiles. Additionally, we can identify which variables are most influential in driving the model’s predictions. This insight helps us understand not only which loans are likely to be most profitable based on unseen test data, but also what factors to focus on when evaluating future loan opportunities. 
 
